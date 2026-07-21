@@ -24,63 +24,62 @@ async def lifespan(app: FastAPI):
     Performs startup database table check/creation and seeds default user credentials.
     """
     logger.info("Starting up SAN AI Interview Preparation application...")
-    if settings.ENVIRONMENT == "development":
+    try:
+        logger.info("Verifying database tables exist...")
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables verified successfully.")
+        
+        # Seed default roles and user credentials
+        db = SessionLocal()
         try:
-            logger.info("Development mode detected: verifying database tables exist...")
-            Base.metadata.create_all(bind=engine)
-            logger.info("Database tables verified successfully.")
-            
-            # Seed default roles and user credentials
-            db = SessionLocal()
-            try:
-                # 1. Seed Roles
-                user_role = db.query(Role).filter(Role.name == "USER").first()
-                if not user_role:
-                    user_role = Role(name="USER", description="Standard student/professional user role")
-                    db.add(user_role)
-                admin_role = db.query(Role).filter(Role.name == "ADMIN").first()
-                if not admin_role:
-                    admin_role = Role(name="ADMIN", description="Administrator role")
-                    db.add(admin_role)
-                db.commit()
-                db.refresh(user_role)
+            # 1. Seed Roles
+            user_role = db.query(Role).filter(Role.name == "USER").first()
+            if not user_role:
+                user_role = Role(name="USER", description="Standard student/professional user role")
+                db.add(user_role)
+            admin_role = db.query(Role).filter(Role.name == "ADMIN").first()
+            if not admin_role:
+                admin_role = Role(name="ADMIN", description="Administrator role")
+                db.add(admin_role)
+            db.commit()
+            db.refresh(user_role)
 
-                # 2. Seed default user account if not exists
-                default_email = "sjaig17@gmail.com"
-                existing = db.query(User).filter(User.email == default_email).first()
-                if not existing:
-                    default_user = User(
-                        email=default_email,
-                        password_hash=get_password_hash("password123"),
-                        full_name="Jane Doe",
-                        is_active=True,
-                        is_admin=True,
-                        role_id=user_role.id
-                    )
-                    db.add(default_user)
-                    db.commit()
-                    db.refresh(default_user)
-                    
-                    profile = UserProfile(
-                        user_id=default_user.id,
-                        college="Harvard University",
-                        degree="Computer Science",
-                        department="Engineering",
-                        current_year=4,
-                        experience_level="Entry",
-                        preferred_job_role="Software Engineer"
-                    )
-                    db.add(profile)
-                    db.commit()
-                    logger.info(f"Successfully seeded default user: {default_email} with password 'password123'")
-            except Exception as e:
-                logger.error(f"Failed to seed default databases: {e}")
-            finally:
-                db.close()
+            # 2. Seed default user account if not exists
+            default_email = "sjaig17@gmail.com"
+            existing = db.query(User).filter(User.email == default_email).first()
+            if not existing:
+                default_user = User(
+                    email=default_email,
+                    password_hash=get_password_hash("password123"),
+                    full_name="Jane Doe",
+                    is_active=True,
+                    is_admin=True,
+                    role_id=user_role.id
+                )
+                db.add(default_user)
+                db.commit()
+                db.refresh(default_user)
                 
+                profile = UserProfile(
+                    user_id=default_user.id,
+                    college="Harvard University",
+                    degree="Computer Science",
+                    department="Engineering",
+                    current_year=4,
+                    experience_level="Entry",
+                    preferred_job_role="Software Engineer"
+                )
+                db.add(profile)
+                db.commit()
+                logger.info(f"Successfully seeded default user: {default_email} with password 'password123'")
         except Exception as e:
-            logger.error(f"Error initializing database tables on startup: {e}")
-            logger.warning("Ensure PostgreSQL is running and DATABASE_URL is correct.")
+            logger.error(f"Failed to seed default databases: {e}")
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.error(f"Error initializing database tables on startup: {e}")
+        logger.warning("Ensure PostgreSQL is running and DATABASE_URL is correct.")
     yield
     logger.info("Shutting down SAN AI Interview Preparation application...")
 
