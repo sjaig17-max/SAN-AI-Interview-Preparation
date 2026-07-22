@@ -50,3 +50,16 @@ def refine_recommendations(
     """
     return ResumeService.refine_recommendations(db, current_user.id, request.analysis_id, request.prompt)
 
+
+@router.post("/refine-content", response_model=ResumeAnalysisResponse)
+def refine_content(
+    request: ResumeRefineRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Automatically edits/rewrites the actual resume content based on JD, analysis suggestions,
+    and optional custom prompt guidelines. Uses a different AI model.
+    """
+    return ResumeService.refine_content(db, current_user.id, request.analysis_id, request.prompt)
+

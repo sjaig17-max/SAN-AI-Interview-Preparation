@@ -41,3 +41,5 @@ class DashboardStatsResponse(BaseModel):
     achievements: List[AchievementResponse]
     leaderboard: List[LeaderboardEntry]
     unread_notifications_count: int
+    user_xp: int = 0
+    user_level: int = 1

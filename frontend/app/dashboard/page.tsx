@@ -251,24 +251,116 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            {/* Gamification Achievements */}
-            <div className="glass-card rounded-3xl p-6 space-y-4">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-violet-400" />
-                Top Achievements
-              </h4>
-              <div className="space-y-3 pt-2">
-                {stats?.achievements && stats.achievements.map((ach: any, i: number) => (
-                  <div key={i} className="flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/5">
-                    <div className="w-9 h-9 rounded-lg bg-violet-600/20 text-violet-400 flex items-center justify-center">
-                      <Star className="w-4 h-4 fill-violet-400" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-white">{ach.title}</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{ach.description}</p>
-                    </div>
+            {/* Level & XP progression */}
+            <div className="glass-card rounded-3xl p-6 flex flex-col justify-between">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2 mb-4">
+                  <Sparkles className="w-4 h-4 text-violet-400" />
+                  Gamification Status
+                </h4>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-black text-white">Level {stats?.user_level || 1} Developer</h3>
+                  <p className="text-[11px] text-violet-400 font-bold">{stats?.user_xp || 100} Total XP Accumulated</p>
+                </div>
+                
+                <div className="mt-4 space-y-2">
+                  <div className="flex justify-between text-[9px] text-gray-400 font-bold uppercase">
+                    <span>Progress to Level { (stats?.user_level || 1) + 1 }</span>
+                    <span>{Math.round(((stats?.user_xp || 100) % 200) / 200 * 100)}%</span>
                   </div>
-                ))}
+                  <div className="w-full h-2.5 bg-white/5 rounded-full overflow-hidden border border-white/5 p-0.5">
+                    <div 
+                      className="h-full bg-gradient-to-r from-violet-600 to-teal-400 rounded-full transition-all duration-1000 ease-out" 
+                      style={{ width: `${((stats?.user_xp || 100) % 200) / 200 * 100}%` }} 
+                    />
+                  </div>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest bg-violet-500/10 border border-violet-500/20 px-2.5 py-1 rounded-full self-start mt-4">
+                XP Level: {stats?.user_level || 1}
+              </span>
+            </div>
+          </div>
+
+          {/* Gamification Row 2 */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Badges Milestones */}
+            <div className="glass-card rounded-3xl p-6 space-y-4 lg:col-span-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-teal-400 flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-teal-400" />
+                Verification Badges & Milestones
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                {[
+                  { title: "First Steps", desc: "Uploaded first resume for ATS check.", icon: "file-text" },
+                  { title: "ATS Conqueror", desc: "Scored 80%+ on ATS alignment.", icon: "shield-check" },
+                  { title: "Mock Marathoner", desc: "Completed an AI mock round.", icon: "trophy" },
+                ].map((badge) => {
+                  const isUnlocked = stats?.achievements?.some((a: any) => a.title === badge.title);
+                  return (
+                    <div 
+                      key={badge.title} 
+                      className={`relative p-4 rounded-2xl border transition-all duration-300 flex flex-col justify-between min-h-28 ${
+                        isUnlocked 
+                          ? "bg-violet-950/20 border-violet-500/30 text-white shadow-lg shadow-violet-500/5" 
+                          : "bg-white/2 border-white/5 opacity-40 text-gray-500"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                          isUnlocked ? "bg-violet-600/20 text-violet-400" : "bg-white/5 text-gray-500"
+                        }`}>
+                          <Star className={`w-4 h-4 ${isUnlocked ? "fill-violet-400" : ""}`} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black">{badge.title}</p>
+                          <p className="text-[9px] text-gray-400 mt-0.5 leading-relaxed">{badge.desc}</p>
+                        </div>
+                      </div>
+                      <span className={`self-start text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full mt-3 ${
+                        isUnlocked ? "bg-violet-500/20 text-violet-400 border border-violet-500/30" : "bg-white/5 text-gray-500"
+                      }`}>
+                        {isUnlocked ? "Unlocked" : "Locked"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Global Leaderboard */}
+            <div className="glass-card rounded-3xl p-6 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-violet-400 flex items-center gap-2">
+                <Award className="w-4 h-4 text-violet-400" />
+                Candidate Leaderboard
+              </h4>
+              <div className="space-y-2 pt-2">
+                {stats?.leaderboard && stats.leaderboard.map((entry: any, i: number) => {
+                  const isCurrentUser = entry.user_name === user?.full_name;
+                  return (
+                    <div 
+                      key={i} 
+                      className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                        isCurrentUser 
+                          ? "bg-violet-600/10 border-violet-500/30 text-white" 
+                          : "bg-white/2 border-white/5 text-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold ${
+                          i === 0 ? "bg-yellow-500/20 text-yellow-400" :
+                          i === 1 ? "bg-slate-400/20 text-slate-300" :
+                          i === 2 ? "bg-amber-600/20 text-amber-500" :
+                          "bg-white/5 text-gray-400"
+                        }`}>
+                          {i + 1}
+                        </div>
+                        <span className="text-xs font-semibold truncate max-w-28">{entry.user_name}</span>
+                      </div>
+                      <span className="text-xs font-black text-violet-400">{entry.total_score} XP</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

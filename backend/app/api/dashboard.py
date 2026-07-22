@@ -26,8 +26,79 @@ def get_dashboard_stats(current_user: User = Depends(get_current_user), db: Sess
     # 2. Activity logs
     recent_logs = db.query(ActivityLog).filter(ActivityLog.user_id == current_user.id).order_by(ActivityLog.created_at.desc()).limit(5).all()
 
-    # 3. Achievements
-    earned_achievements = db.query(Achievement).filter(Achievement.user_id == current_user.id).order_by(Achievement.unlocked_at.desc()).limit(3).all()
+    # 3. Auto-award Achievements and Calculate XP
+    base_xp = 100
+    
+    # Milestone 1: Uploaded resume
+    if latest_resume:
+        existing_first_step = db.query(Achievement).filter(
+            Achievement.user_id == current_user.id,
+            Achievement.title == "First Steps"
+        ).first()
+        if not existing_first_step:
+            ach = Achievement(
+                user_id=current_user.id,
+                title="First Steps",
+                description="Uploaded your first resume for ATS check.",
+                badge_icon="file-text"
+            )
+            db.add(ach)
+            db.commit()
+        base_xp += 150
+
+    # Milestone 2: High ATS score
+    if ats_score >= 80:
+        existing_ats = db.query(Achievement).filter(
+            Achievement.user_id == current_user.id,
+            Achievement.title == "ATS Conqueror"
+        ).first()
+        if not existing_ats:
+            ach = Achievement(
+                user_id=current_user.id,
+                title="ATS Conqueror",
+                description="Scored 80% or higher on ATS alignment.",
+                badge_icon="shield-check"
+            )
+            db.add(ach)
+            db.commit()
+        base_xp += 250
+
+    # Milestone 3: Finished at least 1 mock interview
+    from backend.app.models.models import InterviewSession
+    completed_interviews = db.query(InterviewSession).filter(
+        InterviewSession.user_id == current_user.id,
+        InterviewSession.status == "completed"
+    ).count()
+    if completed_interviews > 0:
+        existing_mock = db.query(Achievement).filter(
+            Achievement.user_id == current_user.id,
+            Achievement.title == "Mock Marathoner"
+        ).first()
+        if not existing_mock:
+            ach = Achievement(
+                user_id=current_user.id,
+                title="Mock Marathoner",
+                description="Completed a full interactive AI Mock Interview round.",
+                badge_icon="trophy"
+            )
+            db.add(ach)
+            db.commit()
+        base_xp += 300 + (completed_interviews * 100)
+
+    # Sync XP with Leaderboard table
+    leaderboard_entry = db.query(Leaderboard).filter(Leaderboard.user_id == current_user.id).first()
+    if not leaderboard_entry:
+        leaderboard_entry = Leaderboard(user_id=current_user.id, total_score=float(base_xp))
+        db.add(leaderboard_entry)
+    else:
+        leaderboard_entry.total_score = max(leaderboard_entry.total_score, float(base_xp))
+    db.commit()
+
+    user_xp = int(leaderboard_entry.total_score)
+    user_level = (user_xp // 200) + 1
+
+    # Fetch Earned Achievements
+    earned_achievements = db.query(Achievement).filter(Achievement.user_id == current_user.id).order_by(Achievement.unlocked_at.desc()).all()
 
     # 4. Notifications
     unread_notifications = db.query(Notification).filter(Notification.user_id == current_user.id, Notification.is_read == False).count()
@@ -65,5 +136,7 @@ def get_dashboard_stats(current_user: User = Depends(get_current_user), db: Sess
         recent_activities=recent_logs,
         achievements=earned_achievements,
         leaderboard=leaderboard,
-        unread_notifications_count=unread_notifications
+        unread_notifications_count=unread_notifications,
+        user_xp=user_xp,
+        user_level=user_level
     )

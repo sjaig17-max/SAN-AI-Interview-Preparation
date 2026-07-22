@@ -15,8 +15,9 @@ class LLMClient:
     """
 
     def __init__(self):
-        self.api_key = settings.OPENAI_API_KEY
-        self.api_base = settings.OPENAI_API_BASE
+        # Use OpenRouter settings if provided
+        self.api_key = settings.OPENROUTER_API_KEY if settings.OPENROUTER_API_KEY != "mock-or-local-llm-key" else settings.OPENAI_API_KEY
+        self.api_base = "https://openrouter.ai/api/v1" if settings.OPENROUTER_API_KEY != "mock-or-local-llm-key" else settings.OPENAI_API_BASE
         
         # Check if we should use mock fallback mode
         self.use_mock = (
@@ -34,7 +35,13 @@ class LLMClient:
         else:
             logger.info("Initializing in LLM mock fallback mode.")
 
-    def generate_json(self, system_prompt: str, user_prompt: str, fallback_data: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_json(
+        self, 
+        system_prompt: str, 
+        user_prompt: str, 
+        fallback_data: Dict[str, Any], 
+        model: str = "google/gemini-2.5-flash"
+    ) -> Dict[str, Any]:
         """
         Sends request to LLM and returns parsed JSON. Falls back to fallback_data on error or mock mode.
         """
@@ -43,17 +50,32 @@ class LLMClient:
             return fallback_data
 
         try:
+            # Note: response_format is supported on some OpenRouter models, keeping it conditional
+            extra_body = {}
+            if "gemini" not in model.lower():
+                extra_body["response_format"] = {"type": "json_object"}
+
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",  # Highly cost-efficient standard model
+                model=model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                response_format={"type": "json_object"},
-                temperature=0.3
+                temperature=0.3,
+                **extra_body
             )
             content = response.choices[0].message.content
-            return json.loads(content)
+            
+            # Clean up markdown code blocks if present
+            cleaned_content = content.strip()
+            if cleaned_content.startswith("```"):
+                lines = cleaned_content.split("\n")
+                if lines[0].startswith("```json"):
+                    cleaned_content = "\n".join(lines[1:-1])
+                elif lines[0].startswith("```"):
+                    cleaned_content = "\n".join(lines[1:-1])
+                    
+            return json.loads(cleaned_content)
         except Exception as e:
             logger.error(f"LLM API call failed: {e}. Falling back to default data structure.")
             return fallback_data

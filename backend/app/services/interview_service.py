@@ -435,10 +435,12 @@ class InterviewService:
         Ensures client tests run correctly out-of-the-box.
         """
         # Aptitude
-        if db.query(AptitudeQuestion).count() == 0:
+        if db.query(AptitudeQuestion).count() < 8:
+            # Clear old ones if existing to prevent duplicates
+            db.query(AptitudeQuestion).delete()
             questions = [
                 AptitudeQuestion(
-                    question="A car travels at 60 km/hr for 2 hours and 80 km/hr for another 3 hours. What is the average speed of the car?",
+                    question="[TCS] A car travels at 60 km/hr for 2 hours and 80 km/hr for another 3 hours. What is the average speed of the car?",
                     options={"A": "70 km/hr", "B": "72 km/hr", "C": "75 km/hr", "D": "76 km/hr"},
                     correct_option="B",
                     subject="Quantitative Aptitude",
@@ -446,7 +448,7 @@ class InterviewService:
                     difficulty="Medium"
                 ),
                 AptitudeQuestion(
-                    question="If 'COACH' is written as 'DPBDI' in a code language, how will 'PLAYER' be written?",
+                    question="[Infosys] If 'COACH' is written as 'DPBDI' in a code language, how will 'PLAYER' be written?",
                     options={"A": "QMBZFS", "B": "QKBZFS", "C": "QMBYFS", "D": "QMBSFS"},
                     correct_option="A",
                     subject="Logical Reasoning",
@@ -454,7 +456,7 @@ class InterviewService:
                     difficulty="Easy"
                 ),
                 AptitudeQuestion(
-                    question="Select the synonym of 'IMPETUOUS'.",
+                    question="[Accenture] Select the synonym of 'IMPETUOUS'.",
                     options={"A": "Cautious", "B": "Impatient", "C": "Rash", "D": "Quiet"},
                     correct_option="C",
                     subject="Verbal Ability",
@@ -462,7 +464,7 @@ class InterviewService:
                     difficulty="Hard"
                 ),
                 AptitudeQuestion(
-                    question="A and B can complete a task in 8 days. If A alone takes 12 days, how long does B take?",
+                    question="[Wipro] A and B can complete a task in 8 days. If A alone takes 12 days, how long does B take?",
                     options={"A": "16 days", "B": "20 days", "C": "24 days", "D": "28 days"},
                     correct_option="C",
                     subject="Quantitative Aptitude",
@@ -470,11 +472,35 @@ class InterviewService:
                     difficulty="Medium"
                 ),
                 AptitudeQuestion(
-                    question="Which number replaces the question mark: 2, 6, 12, 20, 30, ?",
+                    question="[Cognizant] Which number replaces the question mark: 2, 6, 12, 20, 30, ?",
                     options={"A": "40", "B": "42", "C": "44", "D": "46"},
                     correct_option="B",
                     subject="Logical Reasoning",
                     topic="Number System",
+                    difficulty="Easy"
+                ),
+                AptitudeQuestion(
+                    question="[Microsoft] Out of a group of 8 programmer candidates, 3 are selected for interviews. In how many ways can this selection be done?",
+                    options={"A": "48", "B": "56", "C": "64", "D": "72"},
+                    correct_option="B",
+                    subject="Quantitative Aptitude",
+                    topic="Probability & Combinations",
+                    difficulty="Hard"
+                ),
+                AptitudeQuestion(
+                    question="[Amazon] Pointing to a photograph, Rohit said, 'She is the mother of my father's only son.' How is the woman in the photograph related to Rohit?",
+                    options={"A": "Sister", "B": "Aunt", "C": "Mother", "D": "Daughter"},
+                    correct_option="C",
+                    subject="Logical Reasoning",
+                    topic="Blood Relations",
+                    difficulty="Medium"
+                ),
+                AptitudeQuestion(
+                    question="[Tech Mahindra] A merchant marks his goods 20% above the cost price and allows a discount of 10%. What is his overall profit percentage?",
+                    options={"A": "8%", "B": "10%", "C": "12%", "D": "15%"},
+                    correct_option="A",
+                    subject="Quantitative Aptitude",
+                    topic="Profit and Loss",
                     difficulty="Easy"
                 )
             ]
@@ -486,7 +512,7 @@ class InterviewService:
         if db.query(GDTopic).count() == 0:
             topics = [
                 GDTopic(
-                    title="The Role of Social Media in Modern Corporate Recruitment",
+                    title="Will Generative AI Replace human engineers or augment them?",
                     description="Analyze whether GitHub, LinkedIn, and portfolios provide a better view of candidate credentials than standard resumes.",
                     category="Technology & Career",
                     difficulty="Medium"
@@ -502,24 +528,53 @@ class InterviewService:
             db.commit()
 
         # Technical Questions
-        if db.query(TechnicalQuestion).count() == 0:
+        if db.query(TechnicalQuestion).count() < 6:
+            db.query(TechnicalQuestion).delete()
             tech_questions = [
                 TechnicalQuestion(
-                    question="Describe Python decorator mechanics and how to construct a decorator that caches function execution results.",
+                    question="[Google] Describe how to reverse a singly linked list in-place. Detail the pointer manipulations required.",
+                    expected_answer="To reverse in-place, maintain three pointers: prev (null), current (head), and next (null). Iterate through the list, store next pointer, reverse the current link direction (current.next = prev), and move prev and current forward.",
+                    subject="Software Engineer",
+                    topic="Data Structures",
+                    difficulty="Medium"
+                ),
+                TechnicalQuestion(
+                    question="[Microsoft] What is Dynamic Programming? Explain the concept of Memoization vs. Tabulation and provide an example.",
+                    expected_answer="Dynamic Programming solves problems by breaking them into overlapping subproblems. Memoization is a top-down approach that caches recursive calls, while Tabulation is a bottom-up approach that fills an array iteratively.",
+                    subject="Software Engineer",
+                    topic="Algorithms",
+                    difficulty="Hard"
+                ),
+                TechnicalQuestion(
+                    question="[Amazon] Design a highly available URL Shortener system. Describe the core system components, hashing, and database storage choices.",
+                    expected_answer="Use a key generation service or Base62 hash of auto-increment IDs. Cache hot URLs with Redis, store mappings in a distributed key-value NoSQL DB like DynamoDB, and scale reads using read-replicas.",
+                    subject="Software Engineer",
+                    topic="System Design",
+                    difficulty="Hard"
+                ),
+                TechnicalQuestion(
+                    question="[TCS] Explain the difference between clustered and non-clustered indexes in SQL databases.",
+                    expected_answer="A clustered index defines the physical order in which rows are stored in the table (one per table). A non-clustered index has a separate structure that contains keys and pointers to the actual data rows.",
+                    subject="Backend Developer",
+                    topic="SQL Indexing",
+                    difficulty="Medium"
+                ),
+                TechnicalQuestion(
+                    question="[Python Developer] Describe Python decorator mechanics and how to construct a decorator that caches function execution results.",
                     expected_answer="A decorator wraps a function to modify its behavior. Result caching can be achieved by checking a key/value cache dictionary inside the inner wrapper function before calling the original target function.",
                     subject="Python Developer",
                     topic="Decorators",
                     difficulty="Medium"
                 ),
                 TechnicalQuestion(
-                    question="What is JWT and how are claims encoded? How do you prevent token tampering?",
+                    question="[Backend Developer] What is JWT and how are claims encoded? How do you prevent token tampering?",
                     expected_answer="JSON Web Tokens consist of Header, Payload, and Signature. Claims are Base64Url encoded. Tampering is prevented by verifying the signature using a secure secret key on the server.",
                     subject="Backend Developer",
                     topic="Authentication",
                     difficulty="Medium"
                 ),
                 TechnicalQuestion(
-                    question="Explain the virtual DOM algorithm in React and how key attributes optimize list renders.",
+                    question="[Frontend Developer] Explain the virtual DOM algorithm in React and how key attributes optimize list renders.",
                     expected_answer="React creates a memory copy of the actual DOM, reconciles changes via diff algorithms, and batched patches the physical DOM. Keys identify elements uniquely to prevent full child re-mounts.",
                     subject="Frontend Developer",
                     topic="React Core",
@@ -533,7 +588,7 @@ class InterviewService:
         if db.query(HRQuestion).count() == 0:
             hr_questions = [
                 HRQuestion(
-                    question="Tell me about a time you faced a serious technical conflict in a engineering project. How did you resolve it?",
+                    question="[Amazon] Tell me about a time you faced a serious technical conflict in a engineering project. How did you resolve it?",
                     category="Conflict Resolution",
                     expected_points=["Describe Situation", "Explain Task", "Outline Actions", "Share Result"]
                 ),

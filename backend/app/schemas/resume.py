@@ -29,6 +29,7 @@ class ResumeAnalysisResponse(BaseModel):
     strong_areas: List[str]
     job_match_percentage: int
     improvement_suggestions: List[str]
+    resume_text: Optional[str] = None
     created_at: datetime
 
     class Config:

@@ -9,6 +9,7 @@ from backend.app.api.dashboard import router as dashboard_router
 from backend.app.api.resume import router as resume_router
 from backend.app.api.interview import router as interview_router
 from backend.app.websocket.interview_ws import router as ws_router
+from backend.app.api.chatbot import router as chatbot_router
 from backend.app.models.models import Role, User, UserProfile
 from backend.app.core.security import get_password_hash
 
@@ -141,6 +142,7 @@ app.include_router(dashboard_router)
 app.include_router(resume_router)
 app.include_router(interview_router)
 app.include_router(ws_router)
+app.include_router(chatbot_router)
 
 
 @app.get("/health", tags=["System"])

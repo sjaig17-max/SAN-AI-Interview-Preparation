@@ -138,6 +138,10 @@ class ResumeAnalysis(Base):
     # Relationships
     resume: Mapped[Resume] = relationship("Resume", back_populates="analysis")
 
+    @property
+    def resume_text(self) -> Optional[str]:
+        return self.resume.content_text if self.resume else None
+
 
 class Project(Base):
     __tablename__ = "projects"

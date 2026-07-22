@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     # AI Services
     OPENAI_API_KEY: str = "mock-or-local-llm-key"
     OPENAI_API_BASE: str = "https://api.openai.com/v1"
+    OPENROUTER_API_KEY: str = "mock-or-local-llm-key"
 
     # Storage
     CLOUDINARY_URL: Optional[str] = None

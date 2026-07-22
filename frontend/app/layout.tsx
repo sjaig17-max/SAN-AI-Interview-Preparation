@@ -4,6 +4,7 @@ import "@/app/globals.css";
 import React, { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
+import ChatbotWidget from "@/app/components/ChatbotWidget";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ export default function RootLayout({
             <main className="flex-1 flex flex-col">
               {children}
             </main>
+            <ChatbotWidget />
           </div>
         </QueryClientProvider>
       </body>
