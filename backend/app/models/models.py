@@ -225,6 +225,7 @@ class InterviewSession(Base):
     difficulty: Mapped[str] = mapped_column(String(50), default="Medium")
     language: Mapped[str] = mapped_column(String(50), default="English")
     resume_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("resumes.id"), nullable=True)
+    persona: Mapped[str] = mapped_column(String(50), default="Neutral")
     current_round: Mapped[int] = mapped_column(Integer, default=1) # 1=Aptitude, 2=GD, 3=Tech, 4=HR, 5=Completed
     overall_score: Mapped[float] = mapped_column(Float, default=0.0)
     status: Mapped[str] = mapped_column(String(50), default="started") # started, completed, failed
@@ -262,6 +263,7 @@ class TechnicalQuestion(Base):
     subject: Mapped[str] = mapped_column(String(100), index=True) # Python, Javascript, SQL
     topic: Mapped[str] = mapped_column(String(100), index=True) # OOP, FastAPI, Joins
     difficulty: Mapped[str] = mapped_column(String(50)) # Easy, Medium, Hard
+    session_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -283,6 +285,7 @@ class HRQuestion(Base):
     question: Mapped[str] = mapped_column(Text)
     category: Mapped[str] = mapped_column(String(100)) # Strengths, Weaknesses, Relocation
     expected_points: Mapped[Optional[list]] = mapped_column(JSON, nullable=True) # Key elements to cover
+    session_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

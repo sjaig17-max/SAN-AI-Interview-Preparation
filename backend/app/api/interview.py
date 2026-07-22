@@ -121,7 +121,7 @@ def get_hr_questions(id: uuid.UUID, db: Session = Depends(get_db), current_user:
     """
     Retrieves behavioral soft skills questions for the HR round.
     """
-    return InterviewService.get_hr_questions(db)
+    return InterviewService.get_hr_questions(db, id)
 
 
 @router.post("/submit/hr", response_model=HRResultResponse)

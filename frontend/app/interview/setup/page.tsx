@@ -14,6 +14,7 @@ export default function InterviewSetupPage() {
 
   const [jobRole, setJobRole] = useState("");
   const [expLevel, setExpLevel] = useState("Entry");
+  const [persona, setPersona] = useState("Neutral");
   const [starting, setStarting] = useState(false);
 
   useEffect(() => {
@@ -32,7 +33,7 @@ export default function InterviewSetupPage() {
     e.preventDefault();
     setStarting(true);
     try {
-      await startInterview(jobRole, expLevel);
+      await startInterview(jobRole, expLevel, persona);
       router.push("/interview");
     } catch (err) {
       console.error(err);
@@ -93,6 +94,24 @@ export default function InterviewSetupPage() {
                 <option value="Mid">Mid-level Developer (1-4 yrs)</option>
                 <option value="Senior">Senior Developer (5+ yrs)</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Interviewer Persona</label>
+              <select
+                className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-white/10 text-white text-sm"
+                value={persona}
+                onChange={(e) => setPersona(e.target.value)}
+              >
+                <option value="Neutral">Neutral (Standard Professional)</option>
+                <option value="Friendly">Friendly (Supportive & Constructive)</option>
+                <option value="Tough">Tough (Challenging & Probing Gaps)</option>
+              </select>
+              <p className="text-[10px] text-gray-500 mt-1">
+                {persona === "Friendly" && "Interviewer will encourage you and ask standard, helpful questions."}
+                {persona === "Tough" && "Interviewer will challenge your logic, find edge cases, and probe your gaps."}
+                {persona === "Neutral" && "Interviewer will behave as a standard objective recruiter."}
+              </p>
             </div>
 
             {/* Instruction Warning Box */}

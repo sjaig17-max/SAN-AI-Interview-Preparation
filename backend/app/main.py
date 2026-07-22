@@ -29,6 +29,35 @@ async def lifespan(app: FastAPI):
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables verified successfully.")
         
+        # Self-healing database schema migrations
+        try:
+            with engine.connect() as conn:
+                import sqlalchemy as sa
+                inspector = sa.inspect(conn)
+                
+                # interview_sessions
+                columns = [col["name"] for col in inspector.get_columns("interview_sessions")]
+                if "persona" not in columns:
+                    logger.info("Migrating database: Adding 'persona' column to 'interview_sessions' table...")
+                    conn.execute(sa.text("ALTER TABLE interview_sessions ADD COLUMN persona VARCHAR(50) DEFAULT 'Neutral'"))
+                    conn.commit()
+
+                # technical_questions
+                columns_tech = [col["name"] for col in inspector.get_columns("technical_questions")]
+                if "session_id" not in columns_tech:
+                    logger.info("Migrating database: Adding 'session_id' column to 'technical_questions' table...")
+                    conn.execute(sa.text("ALTER TABLE technical_questions ADD COLUMN session_id VARCHAR(36) DEFAULT NULL"))
+                    conn.commit()
+
+                # hr_questions
+                columns_hr = [col["name"] for col in inspector.get_columns("hr_questions")]
+                if "session_id" not in columns_hr:
+                    logger.info("Migrating database: Adding 'session_id' column to 'hr_questions' table...")
+                    conn.execute(sa.text("ALTER TABLE hr_questions ADD COLUMN session_id VARCHAR(36) DEFAULT NULL"))
+                    conn.commit()
+        except Exception as migration_error:
+            logger.warning(f"Self-healing db schema migration check warning: {migration_error}")
+        
         # Seed default roles and user credentials
         db = SessionLocal()
         try:

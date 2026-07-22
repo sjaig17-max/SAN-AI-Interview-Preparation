@@ -8,6 +8,7 @@ interface Session {
   current_round: number;
   overall_score: number;
   status: string;
+  persona?: string;
 }
 
 interface Question {
@@ -38,7 +39,7 @@ interface InterviewState {
   activeHRIndex: number;
   isLoading: boolean;
   
-  startInterview: (jobRole: string, expLevel: string) => Promise<Session>;
+  startInterview: (jobRole: string, expLevel: string, persona?: string) => Promise<Session>;
   checkActiveSession: () => Promise<void>;
   loadRoundData: () => Promise<void>;
   submitAptitude: (answers: Record<string, string>, duration: number) => Promise<void>;
@@ -59,12 +60,13 @@ export const useInterviewStore = create<InterviewState>((set: any, get: any) => 
   activeHRIndex: 0,
   isLoading: false,
 
-  startInterview: async (jobRole: any, expLevel: any) => {
+  startInterview: async (jobRole: any, expLevel: any, persona = "Neutral") => {
     set({ isLoading: true });
     try {
       const res = await api.post("/interview/session", {
         job_role: jobRole,
         experience_level: expLevel,
+        persona: persona
       });
       const session = res.data;
       set({ 
@@ -176,8 +178,13 @@ export const useInterviewStore = create<InterviewState>((set: any, get: any) => 
         user_answer: answerText,
       });
       
+      // Re-fetch questions to include newly generated follow-up
+      const questionsRes = await api.get(`/interview/session/${session.id}/technical`);
+      const updatedQuestions = questionsRes.data;
+      set({ techQuestions: updatedQuestions });
+      
       const newIndex = get().activeTechIndex + 1;
-      const total = get().techQuestions.length;
+      const total = updatedQuestions.length;
       
       if (newIndex >= total) {
         // All technical answers submitted, reload session state from DB
@@ -208,8 +215,13 @@ export const useInterviewStore = create<InterviewState>((set: any, get: any) => 
         user_answer: answerText,
       });
       
+      // Re-fetch questions to include newly generated follow-up
+      const questionsRes = await api.get(`/interview/session/${session.id}/hr`);
+      const updatedQuestions = questionsRes.data;
+      set({ hrQuestions: updatedQuestions });
+      
       const newIndex = get().activeHRIndex + 1;
-      const total = get().hrQuestions.length;
+      const total = updatedQuestions.length;
       
       if (newIndex >= total) {
         // All HR answers submitted, session is completed

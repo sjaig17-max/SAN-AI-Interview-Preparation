@@ -27,6 +27,10 @@ class InterviewService:
             user_id=user_id,
             job_role=data.job_role,
             experience_level=data.experience_level,
+            difficulty=data.difficulty,
+            language=data.language,
+            resume_id=data.resume_id,
+            persona=data.persona,
             current_round=1,  # Start on Round 1: Aptitude
             status="started"
         )
@@ -148,17 +152,48 @@ class InterviewService:
     def get_technical_questions(db: Session, session_id: uuid.UUID) -> List[TechnicalQuestion]:
         session = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
         role = session.job_role if session else "Software Engineer"
-        # Return 3 questions mapped to job role/subject
-        questions = db.query(TechnicalQuestion).filter(TechnicalQuestion.subject.ilike(f"%{role}%")).limit(3).all()
-        if len(questions) < 3:
-            matched_ids = {q.id for q in questions}
-            additional_needed = 3 - len(questions)
-            # Fetch other questions that aren't already included
+        
+        # Check if session-specific questions already exist
+        session_questions = db.query(TechnicalQuestion).filter(
+            TechnicalQuestion.session_id == session_id
+        ).all()
+        
+        if session_questions:
+            return session_questions
+            
+        # Get base questions (global) - limit to 3 questions
+        base_questions = db.query(TechnicalQuestion).filter(
+            TechnicalQuestion.subject.ilike(f"%{role}%"),
+            TechnicalQuestion.session_id == None
+        ).limit(3).all()
+        
+        if len(base_questions) < 3:
+            matched_ids = {q.id for q in base_questions}
+            additional_needed = 3 - len(base_questions)
             extra_questions = db.query(TechnicalQuestion).filter(
-                ~TechnicalQuestion.id.in_(matched_ids) if matched_ids else True
+                (TechnicalQuestion.session_id == None) & (~TechnicalQuestion.id.in_(matched_ids) if matched_ids else True)
             ).limit(additional_needed).all()
-            questions.extend(extra_questions)
-        return questions[:3]
+            base_questions.extend(extra_questions)
+            
+        # Create session-specific copies
+        session_questions = []
+        for q in base_questions[:3]:
+            copied_q = TechnicalQuestion(
+                question=q.question,
+                expected_answer=q.expected_answer,
+                subject=q.subject,
+                topic=q.topic,
+                difficulty=q.difficulty,
+                session_id=session_id
+            )
+            db.add(copied_q)
+            session_questions.append(copied_q)
+            
+        db.commit()
+        for q in session_questions:
+            db.refresh(q)
+            
+        return session_questions
 
     @staticmethod
     def submit_technical_answer(db: Session, user_id: uuid.UUID, data: TechnicalSubmission) -> TechnicalResult:
@@ -190,18 +225,70 @@ class InterviewService:
         db.commit()
         db.refresh(result)
         
-        # In this workflow, check if user has submitted answers for all 3 technical questions
+        # Check if we need to generate an adaptive follow-up
         total_submitted = db.query(TechnicalResult).filter(TechnicalResult.session_id == data.session_id).count()
-        if total_submitted >= 3:
+        if total_submitted == 2:
+            try:
+                from backend.app.ai.interview_evaluator import generate_adaptive_followup
+                followup_data = generate_adaptive_followup(
+                    question=q.question,
+                    user_answer=data.user_answer,
+                    score=eval_report.get("score", 0),
+                    persona=session.persona or "Neutral",
+                    target_role=session.job_role,
+                    is_hr=False
+                )
+                session_qs = db.query(TechnicalQuestion).filter(TechnicalQuestion.session_id == session.id).all()
+                if len(session_qs) >= 3:
+                    target_q = session_qs[2]
+                    target_q.question = followup_data.get("question")
+                    target_q.expected_answer = followup_data.get("expected_answer")
+                    target_q.topic = "Adaptive Follow-up"
+                    db.commit()
+            except Exception as followup_err:
+                print(f"Error generating technical follow-up: {followup_err}")
+
+        # Check if user has submitted answers for all technical questions (including dynamic follow-up if any)
+        total_questions = len(InterviewService.get_technical_questions(db, data.session_id))
+        total_submitted = db.query(TechnicalResult).filter(TechnicalResult.session_id == data.session_id).count()
+        if total_submitted >= total_questions:
             session.current_round = 4  # Advance to HR Interview
             db.commit()
             
         return result
 
     @staticmethod
-    def get_hr_questions(db: Session) -> List[HRQuestion]:
-        # Return 2 behavioral questions
-        return db.query(HRQuestion).limit(2).all()
+    def get_hr_questions(db: Session, session_id: uuid.UUID) -> List[HRQuestion]:
+        # Check if session-specific questions already exist
+        session_questions = db.query(HRQuestion).filter(
+            HRQuestion.session_id == session_id
+        ).all()
+        
+        if session_questions:
+            return session_questions
+            
+        # Get base questions (global) - limit to 2 questions
+        base_questions = db.query(HRQuestion).filter(
+            HRQuestion.session_id == None
+        ).limit(2).all()
+        
+        # Create session-specific copies
+        session_questions = []
+        for q in base_questions[:2]:
+            copied_q = HRQuestion(
+                question=q.question,
+                category=q.category,
+                expected_points=q.expected_points,
+                session_id=session_id
+            )
+            db.add(copied_q)
+            session_questions.append(copied_q)
+            
+        db.commit()
+        for q in session_questions:
+            db.refresh(q)
+            
+        return session_questions
 
     @staticmethod
     def submit_hr_answer(db: Session, user_id: uuid.UUID, data: HRSubmission) -> HRResult:
@@ -234,9 +321,32 @@ class InterviewService:
         db.commit()
         db.refresh(result)
 
-        # Check if HR round is finished (user answered at least 2 HR questions)
+        # Check if we need to generate an adaptive follow-up
         total_submitted = db.query(HRResult).filter(HRResult.session_id == data.session_id).count()
-        if total_submitted >= 2:
+        if total_submitted == 1:
+            try:
+                from backend.app.ai.interview_evaluator import generate_adaptive_followup
+                followup_data = generate_adaptive_followup(
+                    question=q.question,
+                    user_answer=data.user_answer,
+                    score=eval_report.get("score", 0),
+                    persona=session.persona or "Neutral",
+                    target_role=session.job_role,
+                    is_hr=True
+                )
+                session_qs = db.query(HRQuestion).filter(HRQuestion.session_id == session.id).all()
+                if len(session_qs) >= 2:
+                    target_q = session_qs[1]
+                    target_q.question = followup_data.get("question")
+                    target_q.expected_points = followup_data.get("expected_points", [])
+                    db.commit()
+            except Exception as followup_err:
+                print(f"Error generating HR follow-up: {followup_err}")
+
+        # Check if HR round is finished (including dynamic follow-up if any)
+        total_questions = len(InterviewService.get_hr_questions(db, data.session_id))
+        total_submitted = db.query(HRResult).filter(HRResult.session_id == data.session_id).count()
+        if total_submitted >= total_questions:
             # Complete the interview session and build the final report
             InterviewService._compile_final_report(db, session)
 

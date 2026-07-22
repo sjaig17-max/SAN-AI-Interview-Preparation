@@ -10,6 +10,7 @@ class InterviewSessionCreate(BaseModel):
     difficulty: str = "Medium"
     language: str = "English"
     resume_id: Optional[uuid.UUID] = None
+    persona: str = "Neutral"
 
 
 class InterviewSessionResponse(BaseModel):
@@ -23,6 +24,7 @@ class InterviewSessionResponse(BaseModel):
     current_round: int
     overall_score: float
     status: str
+    persona: str
     created_at: datetime
     updated_at: datetime
 

@@ -6,9 +6,47 @@ import { useAuthStore } from "@/store/authStore";
 import { useInterviewStore } from "@/store/interviewStore";
 import { api } from "@/lib/api";
 import { 
-  ArrowLeft, Clock, Info, CheckCircle2, ChevronRight, Mic, MicOff, Loader2, Sparkles, Send, Award, Globe
+  ArrowLeft, Clock, Info, CheckCircle2, ChevronRight, Mic, MicOff, Loader2, Sparkles, Send, Award, Globe, AlertTriangle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+const getInterviewer = (persona = "Neutral") => {
+  switch (persona) {
+    case "Friendly":
+      return {
+        name: "Emma",
+        title: "Empathic Coach",
+        style: "Friendly & Encouraging",
+        avatar: "👩‍🏫",
+        color: "text-teal-400 border-teal-500/20 bg-teal-500/5",
+        badge: "text-teal-400 bg-teal-500/10 border-teal-500/20",
+        avatarBg: "bg-teal-500/10 text-teal-400 border-teal-500/20",
+        intro: "Hi! I'm Emma. I'll guide you through your responses. Try your best, explain your reasoning, and don't worry about minor mistakes!"
+      };
+    case "Tough":
+      return {
+        name: "Victor",
+        title: "Strict Architect",
+        style: "Challenging & Probing",
+        avatar: "👨‍💻",
+        color: "text-red-400 border-red-500/20 bg-red-500/5",
+        badge: "text-red-400 bg-red-500/10 border-red-500/20",
+        avatarBg: "bg-red-500/10 text-red-400 border-red-500/20",
+        intro: "I am Victor. I expect high-precision engineering explanations. I will challenge your decisions and look for edge cases. Make it concise."
+      };
+    default:
+      return {
+        name: "Alex",
+        title: "Standard Recruiter",
+        style: "Objective & Professional",
+        avatar: "🧑‍💼",
+        color: "text-violet-400 border-violet-500/20 bg-violet-500/5",
+        badge: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+        avatarBg: "bg-violet-500/10 text-violet-400 border-violet-500/20",
+        intro: "Hello, I'm Alex. We will cover core concepts and behavioral responses. I will evaluate your answers objectively."
+      };
+  }
+};
 
 export default function InterviewFlowPage() {
   const router = useRouter();
@@ -34,11 +72,11 @@ export default function InterviewFlowPage() {
   const [gdTimer, setGdTimer] = useState(60);
   const gdTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Round 3 Tech States
+  // Round 3 & 4 Timers & Adaptive States
   const [techText, setTechText] = useState("");
-
-  // Round 4 HR States
   const [hrText, setHrText] = useState("");
+  const [roundTimer, setRoundTimer] = useState(180); // Technical (180s), HR (120s)
+  const roundTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Camera integration states/refs for Round 4
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
@@ -65,7 +103,6 @@ export default function InterviewFlowPage() {
     }
   };
 
-  // Start GD 1-minute speaking countdown
   const startGDRecording = () => {
     setRecording(true);
     setGdTimer(60);
@@ -110,6 +147,7 @@ export default function InterviewFlowPage() {
     return () => {
       stopCamera();
       if (gdTimerRef.current) clearInterval(gdTimerRef.current);
+      if (roundTimerRef.current) clearInterval(roundTimerRef.current);
     };
   }, [currentRound, activeSession]);
 
@@ -138,11 +176,38 @@ export default function InterviewFlowPage() {
     };
   }, [currentRound, activeSession]);
 
+  // Adaptive Question Timers (Rounds 3 & 4)
+  useEffect(() => {
+    if ((currentRound === 3 || currentRound === 4) && activeSession) {
+      const initialTime = currentRound === 3 ? 180 : 120;
+      setRoundTimer(initialTime);
+      
+      if (roundTimerRef.current) clearInterval(roundTimerRef.current);
+      
+      roundTimerRef.current = setInterval(() => {
+        setRoundTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(roundTimerRef.current!);
+            if (currentRound === 3) {
+              handleTechSubmit(true);
+            } else {
+              handleHRSubmit(true);
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (roundTimerRef.current) clearInterval(roundTimerRef.current);
+    };
+  }, [currentRound, activeTechIndex, activeHRIndex, activeSession]);
+
   const handleAptitudeSubmit = async (auto = false) => {
     if (!activeSession) return;
     setLoadingAction(true);
     try {
-      // Package default blank answers if auto-submitted
       const submissions = { ...aptitudeAnswers };
       aptitudeQuestions.forEach((q) => {
         if (!submissions[q.id]) submissions[q.id] = "A";
@@ -168,12 +233,15 @@ export default function InterviewFlowPage() {
     }
   };
 
-  const handleTechSubmit = async () => {
-    if (!activeSession || !techText.trim()) return;
+  const handleTechSubmit = async (auto = false) => {
+    if (!activeSession) return;
+    const finalVal = techText.trim() || (auto ? "[Time ran out. Candidate did not finish answer]" : "");
+    if (!finalVal) return;
+
     setLoadingAction(true);
     try {
       const activeQ = techQuestions[activeTechIndex];
-      await submitTechnicalAnswer(activeQ.id, techText);
+      await submitTechnicalAnswer(activeQ.id, finalVal);
       setTechText("");
     } catch (err) {
       setError("Failed to submit technical response.");
@@ -182,12 +250,15 @@ export default function InterviewFlowPage() {
     }
   };
 
-  const handleHRSubmit = async () => {
-    if (!activeSession || !hrText.trim()) return;
+  const handleHRSubmit = async (auto = false) => {
+    if (!activeSession) return;
+    const finalVal = hrText.trim() || (auto ? "[Time ran out. Candidate did not finish answer]" : "");
+    if (!finalVal) return;
+
     setLoadingAction(true);
     try {
       const activeQ = hrQuestions[activeHRIndex];
-      await submitHRAnswer(activeQ.id, hrText);
+      await submitHRAnswer(activeQ.id, finalVal);
       setHrText("");
     } catch (err) {
       setError("Failed to submit HR response.");
@@ -196,7 +267,6 @@ export default function InterviewFlowPage() {
     }
   };
 
-  // Simulated Voice recording toggles
   const toggleRecording = () => {
     if (currentRound === 2) {
       if (recording) {
@@ -209,7 +279,6 @@ export default function InterviewFlowPage() {
 
     setRecording(!recording);
     if (!recording) {
-      // Simulate speech to text insertion
       setTimeout(() => {
         const text = currentRound === 3
           ? "A list in Python is mutable and uses dynamic arrays, whereas a tuple is immutable and has a fixed allocation, making it highly memory efficient."
@@ -239,6 +308,11 @@ export default function InterviewFlowPage() {
     return `${mins}:${remaining < 10 ? "0" : ""}${remaining}`;
   };
 
+  const interviewer = getInterviewer(activeSession.persona);
+
+  // Check if candidate is rambling / typing too long (Interruption simulation)
+  const isRambling = currentRound === 3 ? techText.length > 500 : currentRound === 4 ? hrText.length > 400 : false;
+
   return (
     <div className="min-h-screen py-10 px-6 max-w-4xl mx-auto space-y-6 flex flex-col justify-between">
       {/* Upper Status Line */}
@@ -249,11 +323,18 @@ export default function InterviewFlowPage() {
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-400 bg-white/5 border border-white/5 px-3 py-1.5 rounded-xl">
           <Clock className="w-4 h-4 text-violet-400" />
-          <span>Timer: {currentRound === 1 ? formatTime(timer) : "Unlimited"}</span>
+          <span>
+            {currentRound === 1 
+              ? `Aptitude Timer: ${formatTime(timer)}` 
+              : currentRound === 3 || currentRound === 4
+                ? `Question Timer: ${formatTime(roundTimer)}`
+                : "Unlimited"
+            }
+          </span>
         </div>
       </div>
 
-      {/* Primary Interative Window */}
+      {/* Primary Interactive Window */}
       <div className="flex-1 flex flex-col justify-center my-6">
         <AnimatePresence mode="wait">
           
@@ -402,6 +483,40 @@ export default function InterviewFlowPage() {
                 <p className="text-xs text-gray-400 mt-2">Question {activeTechIndex + 1} of {techQuestions.length}</p>
               </div>
 
+              {/* Persona Interviewer Avatar Display */}
+              <div className="flex gap-4 p-5 rounded-2xl border border-white/5 bg-[#121217]">
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-3xl border ${interviewer.avatarBg}`}>
+                  {interviewer.avatar}
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-extrabold text-white">{interviewer.name}</h4>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-gray-500">{interviewer.title}</span>
+                    <span className={`text-[8px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${interviewer.badge}`}>
+                      {interviewer.style}
+                    </span>
+                  </div>
+                  
+                  {/* Dynamic dialogue message box */}
+                  <div className="text-xs text-gray-300 leading-relaxed relative">
+                    <p className="italic bg-[#09090b]/50 p-3 rounded-xl border border-white/5">
+                      {isRambling ? (
+                        <span className="text-red-400 flex items-center gap-1.5 font-semibold">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0 animate-bounce" />
+                          "Excuse me, let's wrap this up. We have limited time—can you summarize your final trade-offs?"
+                        </span>
+                      ) : activeTechIndex === 0 ? (
+                        interviewer.intro
+                      ) : techQuestions[activeTechIndex]?.topic === "Adaptive Follow-up" ? (
+                        `"Let's probe a bit deeper on your last response. Answer this:"`
+                      ) : (
+                        `"Here is your next question. Make sure to detail your reasoning:"`
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {techQuestions[activeTechIndex] && (
                 <div className="space-y-4">
                   <div className="glass-card rounded-3xl p-6 space-y-3">
@@ -432,7 +547,7 @@ export default function InterviewFlowPage() {
                   </div>
 
                   <button
-                    onClick={handleTechSubmit}
+                    onClick={() => handleTechSubmit()}
                     disabled={loadingAction || !techText.trim()}
                     className="w-full py-3.5 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-2xl text-xs transition-colors flex items-center justify-center gap-2"
                   >
@@ -457,6 +572,38 @@ export default function InterviewFlowPage() {
                   Round 4: HR & Behavioral Assessment
                 </span>
                 <p className="text-xs text-gray-400 mt-2">Question {activeHRIndex + 1} of {hrQuestions.length}</p>
+              </div>
+
+              {/* Persona Interviewer Avatar Display */}
+              <div className="flex gap-4 p-5 rounded-2xl border border-white/5 bg-[#121217]">
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-3xl border ${interviewer.avatarBg}`}>
+                  {interviewer.avatar}
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-extrabold text-white">{interviewer.name}</h4>
+                    <span className="text-[9px] uppercase font-black tracking-widest text-gray-500">{interviewer.title}</span>
+                    <span className={`text-[8px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${interviewer.badge}`}>
+                      {interviewer.style}
+                    </span>
+                  </div>
+                  
+                  {/* Dynamic dialogue message box */}
+                  <div className="text-xs text-gray-300 leading-relaxed relative">
+                    <p className="italic bg-[#09090b]/50 p-3 rounded-xl border border-white/5">
+                      {isRambling ? (
+                        <span className="text-red-400 flex items-center gap-1.5 font-semibold">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0 animate-bounce" />
+                          "Let's move on to keep within time. Can you quickly state the final results of your action?"
+                        </span>
+                      ) : activeHRIndex === 0 ? (
+                        `"Let's start the behavioral round. I will assess your response using the STAR method."`
+                      ) : (
+                        `"I'd like to probe deeper into that scenario. Specifically, answer this:"`
+                      )}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Webcam View Feed */}
@@ -523,7 +670,7 @@ export default function InterviewFlowPage() {
                   </div>
 
                   <button
-                    onClick={handleHRSubmit}
+                    onClick={() => handleHRSubmit()}
                     disabled={loadingAction || !hrText.trim()}
                     className="w-full py-3.5 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-2xl text-xs transition-colors flex items-center justify-center gap-2"
                   >

@@ -261,3 +261,45 @@ def generate_career_roadmap(skills: List[str], target_role: str) -> Dict[str, An
     }
     
     return llm_client.generate_json(system_prompt, user_prompt, fallback_data)
+
+
+def generate_adaptive_followup(
+    question: str, 
+    user_answer: str, 
+    score: int, 
+    persona: str = "Neutral", 
+    target_role: str = "Software Engineer",
+    is_hr: bool = False
+) -> Dict[str, Any]:
+    """
+    Generates a dynamic follow-up question based on the user's previous response,
+    conforming to the selected interviewer persona and adaptive difficulty.
+    """
+    system_prompt = (
+        f"You are an expert {'HR director' if is_hr else 'technical architect'} conducting a mock interview for the role of '{target_role}'. "
+        f"Your interview style and persona is: '{persona}'.\n"
+        f"- Friendly: supportive, encourages candidate, asks constructive/accessible follow-ups.\n"
+        f"- Tough: strict, directly challenges logic, points out technical weaknesses, asks demanding questions.\n"
+        f"- Neutral: professional, standard corporate interviewer, objective.\n\n"
+        f"Generate a single follow-up question to probe the candidate's previous response. If their score was high (>= 75), "
+        f"ask a more difficult, advanced question. If their score was lower (< 75), ask a clarifying question or guide "
+        f"them to explain standard concepts. Return a JSON object with keys 'question' and 'expected_answer'."
+    )
+    
+    user_prompt = f"""
+    Previous Question: {question}
+    Candidate's Answer: {user_answer}
+    Evaluation Score: {score}/100
+    
+    Respond in JSON format only with:
+    - question: string (the follow-up question)
+    - expected_answer: string (the detailed criteria/answer key)
+    """
+    
+    fallback_data = {
+        "question": f"Probing deeper into your previous response about '{question[:50]}...', could you explain what trade-offs or alternative options you considered?",
+        "expected_answer": "Candidate should discuss time/space complexity, modularity, reliability, or alignment with team objectives."
+    }
+    
+    return llm_client.generate_json(system_prompt, user_prompt, fallback_data)
+
