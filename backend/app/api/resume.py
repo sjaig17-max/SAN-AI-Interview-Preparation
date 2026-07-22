@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
 from backend.app.core.database import get_db
-from backend.app.schemas.resume import ResumeAnalysisResponse, ResumeOptimizeRequest
+from backend.app.schemas.resume import ResumeAnalysisResponse, ResumeOptimizeRequest, ResumeRefineRequest
 from backend.app.api.deps import get_current_user
 from backend.app.models.models import User
 from backend.app.services.resume_service import ResumeService
@@ -36,3 +36,17 @@ def get_latest_resume_analysis(db: Session = Depends(get_db), current_user: User
             detail="No resume analysis report exists. Please upload your resume first."
         )
     return analysis
+
+
+@router.post("/refine-recommendations", response_model=ResumeAnalysisResponse)
+def refine_recommendations(
+    request: ResumeRefineRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Refines the improvement suggestions of an existing resume analysis report using AI
+    guided by the user's custom text prompt instruction.
+    """
+    return ResumeService.refine_recommendations(db, current_user.id, request.analysis_id, request.prompt)
+

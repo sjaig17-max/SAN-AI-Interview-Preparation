@@ -38,3 +38,9 @@ class ResumeAnalysisResponse(BaseModel):
 class ResumeOptimizeRequest(BaseModel):
     target_role: str
     target_description: Optional[str] = None
+
+
+class ResumeRefineRequest(BaseModel):
+    analysis_id: uuid.UUID
+    prompt: str
+

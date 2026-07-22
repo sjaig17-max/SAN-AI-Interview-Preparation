@@ -77,3 +77,67 @@ class ResumeService:
         if not latest_resume:
             return None
         return latest_resume.analysis
+
+    @staticmethod
+    def refine_recommendations(db: Session, user_id: uuid.UUID, analysis_id: uuid.UUID, prompt: str) -> ResumeAnalysis:
+        from fastapi import HTTPException
+        from backend.app.ai.llm_client import llm_client
+
+        # Retrieve analysis report
+        analysis = db.query(ResumeAnalysis).filter(ResumeAnalysis.id == analysis_id).first()
+        if not analysis:
+            raise HTTPException(status_code=404, detail="Resume analysis report not found.")
+
+        # Verify ownership
+        resume = analysis.resume
+        if not resume or resume.user_id != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to edit this analysis report.")
+
+        # Get relevant metadata
+        resume_text = resume.content_text or ""
+        original_suggestions = analysis.improvement_suggestions or []
+        target_role = "Software Engineer"
+        if resume.parsed_data and isinstance(resume.parsed_data, dict):
+            target_role = resume.parsed_data.get("preferred_job_role", "Software Engineer")
+
+        # Ask the LLM to refine the suggestions
+        system_prompt = (
+            "You are an expert resume reviewer and ATS coach. The user wants to modify and edit "
+            "the existing list of resume improvement recommendations based on a specific custom instruction. "
+            "Refine the suggestions to align with their feedback and instruction, ensuring they are actionable, "
+            "professional, and specific. Return a JSON object with a single key 'improvement_suggestions' containing "
+            "the refined list of strings."
+        )
+
+        suggestions_str = "\n".join(f"- {sug}" for sug in original_suggestions)
+        user_prompt = f"""
+        Original Resume Excerpt/Text:
+        {resume_text[:2500]}
+
+        Target Career Pathway: {target_role}
+
+        Current Suggestions:
+        {suggestions_str}
+
+        User Custom Instruction: {prompt}
+        """
+
+        # Set up mock/offline fallback
+        fallback_suggestions = [
+            f"{sug} (Refined for: {prompt})" for sug in original_suggestions
+        ]
+        if not fallback_suggestions:
+            fallback_suggestions = [f"Focus on key skills related to {prompt}."]
+
+        fallback_data = {"improvement_suggestions": fallback_suggestions}
+
+        llm_response = llm_client.generate_json(system_prompt, user_prompt, fallback_data)
+        refined_suggestions = llm_response.get("improvement_suggestions", fallback_suggestions)
+
+        # Update in-place and save
+        analysis.improvement_suggestions = refined_suggestions
+        db.commit()
+        db.refresh(analysis)
+
+        return analysis
+
