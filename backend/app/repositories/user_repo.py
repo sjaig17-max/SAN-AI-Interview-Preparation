@@ -72,7 +72,10 @@ class UserRepository:
     def update_profile(db: Session, user_id: uuid.UUID, data: UserProfileUpdate) -> Optional[UserProfile]:
         profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
         if not profile:
-            return None
+            profile = UserProfile(user_id=user_id)
+            db.add(profile)
+            db.commit()
+            db.refresh(profile)
         
         # Update defined fields dynamically
         update_data = data.model_dump(exclude_unset=True)
