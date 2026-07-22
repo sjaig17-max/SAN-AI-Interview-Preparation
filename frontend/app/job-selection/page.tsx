@@ -191,8 +191,20 @@ export default function JobSelectionPage() {
   };
 
   return (
-    <div className="min-h-screen py-16 px-6 max-w-6xl mx-auto flex flex-col justify-center relative">
-      
+    <div className="min-h-screen bg-[#09090b] py-12 px-4 sm:px-6 max-w-6xl mx-auto flex flex-col justify-center relative">
+      {/* Ambient glows */}
+      <div className="fixed top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-violet-600/6 blur-[120px] pointer-events-none" />
+      <div className="fixed bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-teal-600/4 blur-[100px] pointer-events-none" />
+
+      {/* Mini brand header */}
+      <div className="flex items-center gap-2.5 mb-10">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
+          <Sparkles className="w-4 h-4 text-white" />
+        </div>
+        <span className="font-black text-sm text-white tracking-tight">SAN AI</span>
+        <span className="badge badge-violet ml-1">Setup</span>
+      </div>
+
       {/* Onboarding Progress Stepper */}
       <div className="max-w-3xl mx-auto w-full mb-12 hidden md:block">
         <div className="flex items-center justify-between relative">
